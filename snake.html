@@ -13,12 +13,82 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
             min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
             padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .background-snakes {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .cute-snake {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            opacity: 0.3;
+            animation: floatSnake 20s infinite linear;
+        }
+
+        .cute-snake:nth-child(1) {
+            top: 10%;
+            animation-delay: 0s;
+            animation-duration: 25s;
+        }
+
+        .cute-snake:nth-child(2) {
+            top: 30%;
+            animation-delay: -5s;
+            animation-duration: 30s;
+        }
+
+        .cute-snake:nth-child(3) {
+            top: 50%;
+            animation-delay: -10s;
+            animation-duration: 20s;
+        }
+
+        .cute-snake:nth-child(4) {
+            top: 70%;
+            animation-delay: -15s;
+            animation-duration: 35s;
+        }
+
+        .cute-snake:nth-child(5) {
+            top: 20%;
+            animation-delay: -8s;
+            animation-duration: 28s;
+        }
+
+        @keyframes floatSnake {
+            0% {
+                left: -100px;
+                transform: translateY(0) rotate(0deg);
+            }
+            25% {
+                transform: translateY(-30px) rotate(5deg);
+            }
+            50% {
+                transform: translateY(0) rotate(0deg);
+            }
+            75% {
+                transform: translateY(30px) rotate(-5deg);
+            }
+            100% {
+                left: calc(100% + 100px);
+                transform: translateY(0) rotate(0deg);
+            }
         }
 
         .game-container {
@@ -27,6 +97,8 @@
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
             padding: 30px;
             text-align: center;
+            position: relative;
+            z-index: 1;
         }
 
         h1 {
@@ -219,6 +291,8 @@
         </div>
     </div>
 
+    <div class="background-snakes" id="backgroundSnakes"></div>
+
     <script>
         // 게임 설정
         const GRID_SIZE = 20;
@@ -261,9 +335,45 @@
             resetGame();
             generateFood();
             draw();
+            createBackgroundSnakes();
             
             // 키보드 이벤트 리스너
             document.addEventListener('keydown', handleKeyPress);
+        }
+
+        // 배경 귀여운 뱀 생성
+        function createBackgroundSnakes() {
+            const container = document.getElementById('backgroundSnakes');
+            const snakeCount = 5;
+            
+            for (let i = 0; i < snakeCount; i++) {
+                const snake = document.createElement('div');
+                snake.className = 'cute-snake';
+                snake.innerHTML = createCuteSnakeSVG();
+                container.appendChild(snake);
+            }
+        }
+
+        // 귀여운 뱀 SVG 생성
+        function createCuteSnakeSVG() {
+            return `
+                <svg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
+                    <!-- 뱀 몸통 -->
+                    <ellipse cx="30" cy="30" rx="25" ry="12" fill="#4ecdc4" opacity="0.8"/>
+                    <!-- 뱀 머리 -->
+                    <circle cx="45" cy="30" r="10" fill="#2ecc71" opacity="0.9"/>
+                    <!-- 눈 -->
+                    <circle cx="48" cy="27" r="2" fill="#fff"/>
+                    <circle cx="48" cy="33" r="2" fill="#fff"/>
+                    <circle cx="49" cy="27" r="1" fill="#000"/>
+                    <circle cx="49" cy="33" r="1" fill="#000"/>
+                    <!-- 혓바닥 -->
+                    <path d="M 55 30 L 60 28 L 60 32 Z" fill="#e74c3c" opacity="0.8"/>
+                    <!-- 비늘 패턴 -->
+                    <path d="M 20 30 L 25 25 L 30 30 L 25 35 Z" fill="#45b7aa" opacity="0.6"/>
+                    <path d="M 15 30 L 20 25 L 25 30 L 20 35 Z" fill="#45b7aa" opacity="0.6"/>
+                </svg>
+            `;
         }
 
         // 게임 리셋
@@ -435,17 +545,11 @@
                 ctx.stroke();
             }
 
-            // 음식 그리기
-            ctx.fillStyle = '#ff6b6b';
-            ctx.beginPath();
-            ctx.arc(
+            // 사과 그리기
+            drawApple(
                 food.x * CELL_SIZE + CELL_SIZE / 2,
-                food.y * CELL_SIZE + CELL_SIZE / 2,
-                CELL_SIZE / 2 - 2,
-                0,
-                Math.PI * 2
+                food.y * CELL_SIZE + CELL_SIZE / 2
             );
-            ctx.fill();
 
             // 뱀 그리기
             snake.forEach((segment, index) => {
@@ -457,6 +561,9 @@
                 if (index === 0) {
                     // 머리 그리기
                     drawSnakeHead(x, y, centerX, centerY);
+                } else if (index === snake.length - 1) {
+                    // 꼬리 그리기
+                    drawSnakeTail(x, y, index);
                 } else {
                     // 몸통 그리기 (비늘 패턴)
                     drawSnakeBody(x, y, index);
@@ -599,8 +706,116 @@
             ctx.stroke();
         }
 
+        // 뱀 꼬리 그리기
+        function drawSnakeTail(x, y, index) {
+            const centerX = x + CELL_SIZE / 2;
+            const centerY = y + CELL_SIZE / 2;
+            
+            // 꼬리 방향 계산 (이전 세그먼트로부터)
+            const prevSegment = snake[index - 1];
+            const tailDirection = {
+                x: prevSegment.x - snake[index].x,
+                y: prevSegment.y - snake[index].y
+            };
+
+            // 꼬리 배경 (그라데이션)
+            const gradient = ctx.createLinearGradient(x, y, x + CELL_SIZE, y + CELL_SIZE);
+            gradient.addColorStop(0, '#45b7aa');
+            gradient.addColorStop(1, '#3a9d8f');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(x + 1, y + 1, CELL_SIZE - 2, CELL_SIZE - 2);
+
+            // 꼬리 윤곽선
+            ctx.strokeStyle = '#2d7d6f';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x + 1, y + 1, CELL_SIZE - 2, CELL_SIZE - 2);
+
+            // 꼬리 끝 부분 (뾰족하게)
+            ctx.fillStyle = '#3a9d8f';
+            ctx.beginPath();
+            
+            if (tailDirection.x === 1) { // 왼쪽으로 향하는 꼬리
+                ctx.moveTo(x + 1, y + 1);
+                ctx.lineTo(x + 1, y + CELL_SIZE - 1);
+                ctx.lineTo(x + CELL_SIZE / 2, centerY);
+                ctx.closePath();
+            } else if (tailDirection.x === -1) { // 오른쪽으로 향하는 꼬리
+                ctx.moveTo(x + CELL_SIZE - 1, y + 1);
+                ctx.lineTo(x + CELL_SIZE - 1, y + CELL_SIZE - 1);
+                ctx.lineTo(x + CELL_SIZE / 2, centerY);
+                ctx.closePath();
+            } else if (tailDirection.y === 1) { // 위로 향하는 꼬리
+                ctx.moveTo(x + 1, y + 1);
+                ctx.lineTo(x + CELL_SIZE - 1, y + 1);
+                ctx.lineTo(centerX, y + CELL_SIZE / 2);
+                ctx.closePath();
+            } else if (tailDirection.y === -1) { // 아래로 향하는 꼬리
+                ctx.moveTo(x + 1, y + CELL_SIZE - 1);
+                ctx.lineTo(x + CELL_SIZE - 1, y + CELL_SIZE - 1);
+                ctx.lineTo(centerX, y + CELL_SIZE / 2);
+                ctx.closePath();
+            }
+            
+            ctx.fill();
+            ctx.stroke();
+        }
+
+        // 사과 그리기
+        function drawApple(centerX, centerY) {
+            const radius = CELL_SIZE / 2 - 2;
+            
+            // 사과 본체 (빨간색)
+            const gradient = ctx.createRadialGradient(
+                centerX - radius * 0.3,
+                centerY - radius * 0.3,
+                0,
+                centerX,
+                centerY,
+                radius
+            );
+            gradient.addColorStop(0, '#ff4757');
+            gradient.addColorStop(0.7, '#ee5a6f');
+            gradient.addColorStop(1, '#c44569');
+            
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            // 사과 모양 (위쪽이 약간 들어간 형태)
+            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // 사과 하단 부분 (약간 들어간 부분)
+            ctx.fillStyle = '#c44569';
+            ctx.beginPath();
+            ctx.arc(centerX, centerY + radius * 0.3, radius * 0.4, 0, Math.PI, true);
+            ctx.fill();
+            
+            // 사과 윤곽선
+            ctx.strokeStyle = '#a8324f';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // 사과 줄기 (위쪽)
+            ctx.fillStyle = '#8b4513';
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY - radius);
+            ctx.lineTo(centerX - 2, centerY - radius - 3);
+            ctx.lineTo(centerX + 2, centerY - radius - 3);
+            ctx.closePath();
+            ctx.fill();
+            
+            // 사과 잎 (줄기 옆)
+            ctx.fillStyle = '#2ed573';
+            ctx.beginPath();
+            ctx.ellipse(centerX - 3, centerY - radius - 2, 3, 2, -0.5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
         // 페이지 로드 시 초기화
         window.addEventListener('load', init);
+
+        
     </script>
 </body>
 </html>
